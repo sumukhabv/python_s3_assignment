@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import base64
+import pandas as pd
 
 API_URL = "http://localhost:8000/s3"  # FastAPI must be running
 
@@ -17,8 +18,19 @@ operation = st.sidebar.radio("Select Operation", [
 
 def list_buckets():
     resp = requests.get(f"{API_URL}/buckets")
+
+    # Convert the JSON response to a list of dictionaries (if it isn't already)
+    data = resp.json()
+
+    # Display header
     st.subheader("Available Buckets:")
-    st.json(resp.json())
+
+    # Convert to a DataFrame for tabular display
+    if isinstance(data, list) and len(data) > 0:
+        df = pd.DataFrame(data)
+        st.table(df)  # You can also use st.dataframe(df) for a scrollable, interactive version
+    else:
+        st.write("No buckets found or unexpected data format.")
 
 
 def create_bucket():
@@ -37,10 +49,39 @@ def delete_bucket():
 
 def list_objects():
     bucket = st.text_input("Bucket name to list objects")
+    
     if st.button("List Objects"):
         resp = requests.get(f"{API_URL}/objects/{bucket}")
-        st.subheader(f"Objects in {bucket}:")
-        st.json(resp.json())
+        
+        if resp.status_code == 200:
+            objects = resp.json()
+            st.subheader(f"Objects in {bucket}:")
+
+            simplified_data = []
+
+            for obj in objects:
+                key = obj.get("Key", "")
+                
+                if key.endswith("/"):
+                    object_type = "Folder"
+                    object_name = key.rstrip("/")
+                elif "/" in key:
+                    object_type = f"File in folder {key.split("/")[:-1]}"
+                    object_name = key.split("/")[-1]
+                else:
+                    object_type = "File"
+                    object_name = key
+
+                simplified_data.append({
+                    "Object Name": object_name,
+                    "Object Type": object_type
+                })
+
+            # Convert to DataFrame and display as a table
+            df = pd.DataFrame(simplified_data)
+            st.table(df)
+        else:
+            st.error(f"Failed to retrieve objects. Status code: {resp.status_code}")
 
 
 def create_folder():
