@@ -1,8 +1,16 @@
 from app.config import get_s3_client
 import base64
-import uuid
+import string
+import random
 
 s3 = get_s3_client()
+
+def get_random_string():
+    characters = string.ascii_lowercase
+    random_string=''.join(random.choices(characters,k=4))
+    print(random_string)
+    return random_string
+
 
 def list_buckets():
     return s3.list_buckets().get('Buckets', [])
@@ -12,7 +20,7 @@ def list_objects(bucket_name):
 
 def create_bucket(bucket_name):
     response = s3.create_bucket(
-            Bucket=bucket_name + str(uuid.uuid4()),
+            Bucket=bucket_name + get_random_string(),
             CreateBucketConfiguration={'LocationConstraint': 'ap-south-1'}
         )
     if response["ResponseMetadata"]["HTTPStatusCode"] == 200:
